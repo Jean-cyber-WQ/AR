@@ -79,6 +79,12 @@
             font-size: 18px;
             color: #555;
         }
+        .error-message {
+            color: red;
+            text-align: center;
+            margin-top: 10px;
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -95,6 +101,7 @@
         
         <div class="model-viewer-container">
             <div class="loading">Загрузка модели...</div>
+            <div class="error-message" id="error-msg">Ошибка загрузки модели. Проверьте консоль (F12).</div>
             <model-viewer
                 id="viewer"
                 alt="3D модель"
@@ -113,34 +120,55 @@
         const modelViewer = document.querySelector("#viewer");
         const arButton = document.querySelector("#ar-btn");
         const loadingText = document.querySelector(".loading");
+        const errorMsg = document.querySelector("#error-msg");
         const modelButtons = document.querySelectorAll(".model-btn");
 
-        // Скрываем AR-кнопку по умолчанию
+        // Скрываем AR-кнопку и ошибку по умолчанию
         arButton.style.display = "none";
+        errorMsg.style.display = "none";
+
+        // Функция сброса состояния перед загрузкой новой модели
+        const resetViewerState = () => {
+            loadingText.style.display = "none";
+            errorMsg.style.display = "none";
+            modelViewer.style.display = "block";
+            arButton.style.display = "none";
+        };
 
         // Обработчик для кнопок моделей
         modelButtons.forEach(button => {
             button.addEventListener("click", () => {
                 const modelFile = button.getAttribute("data-model");
+                
+                // Сбрасываем состояние перед загрузкой
+                resetViewerState();
                 loadingText.style.display = "block";
                 modelViewer.style.display = "none";
-                arButton.style.display = "none";
 
-                // Загружаем модель
-                modelViewer.src = modelFile;
+                // Удаляем старые обработчики (если были)
+                modelViewer.removeEventListener("load", onModelLoad);
+                modelViewer.removeEventListener("error", onModelError);
 
-                // Когда модель загрузится
-                modelViewer.addEventListener("load", () => {
+                // Новые обработчики
+                const onModelLoad = () => {
                     loadingText.style.display = "none";
                     modelViewer.style.display = "block";
                     arButton.style.display = "block";
-                });
+                    errorMsg.style.display = "none";
+                };
 
-                // Если ошибка
-                modelViewer.addEventListener("error", () => {
-                    loadingText.textContent = "Ошибка загрузки модели!";
-                    loadingText.style.color = "red";
-                });
+                const onModelError = () => {
+                    loadingText.style.display = "none";
+                    modelViewer.style.display = "none";
+                    errorMsg.style.display = "block";
+                    console.error(`Ошибка загрузки модели: ${modelFile}`);
+                };
+
+                modelViewer.addEventListener("load", onModelLoad, { once: true });
+                modelViewer.addEventListener("error", onModelError, { once: true });
+
+                // Пытаемся загрузить модель
+                modelViewer.src = modelFile;
             });
         });
 
