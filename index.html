@@ -71,25 +71,13 @@
             z-index: 10;
         }
         .loading {
+            display: none;
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             font-size: 18px;
             color: #555;
-        }
-        .error-message {
-            color: red;
-            text-align: center;
-            margin-top: 10px;
-        }
-        model-viewer {
-            width: 100%;
-            height: 100%;
-        }
-        /* Скрываем элементы по умолчанию */
-        #viewer, #ar-btn, #error-msg, #loading {
-            display: none;
         }
     </style>
 </head>
@@ -106,8 +94,7 @@
         </div>
         
         <div class="model-viewer-container">
-            <div id="loading" class="loading">Загрузка модели...</div>
-            <div id="error-msg" class="error-message"></div>
+            <div class="loading">Загрузка модели...</div>
             <model-viewer
                 id="viewer"
                 alt="3D модель"
@@ -115,59 +102,51 @@
                 ar-modes="webxr scene-viewer quick-look"
                 environment-image="neutral"
                 auto-rotate
-                camera-controls>
+                camera-controls
+                style="width: 100%; height: 100%;">
             </model-viewer>
-            <button id="ar-btn" class="ar-button">Просмотр в AR</button>
+            <button class="ar-button" id="ar-btn">Просмотр в AR</button>
         </div>
     </div>
 
     <script>
-        const viewer = document.getElementById("viewer");
-        const arBtn = document.getElementById("ar-btn");
-        const loading = document.getElementById("loading");
-        const errorMsg = document.getElementById("error-msg");
-        const buttons = document.querySelectorAll(".model-btn");
+        const modelViewer = document.querySelector("#viewer");
+        const arButton = document.querySelector("#ar-btn");
+        const loadingText = document.querySelector(".loading");
+        const modelButtons = document.querySelectorAll(".model-btn");
+
+        // Скрываем AR-кнопку по умолчанию
+        arButton.style.display = "none";
 
         // Обработчик для кнопок моделей
-        buttons.forEach(button => {
-            button.addEventListener("click", async () => {
+        modelButtons.forEach(button => {
+            button.addEventListener("click", () => {
                 const modelFile = button.getAttribute("data-model");
-                
-                // Сбрасываем состояние
-                viewer.style.display = "none";
-                arBtn.style.display = "none";
-                errorMsg.style.display = "none";
-                loading.style.display = "block";
-                errorMsg.textContent = "";
+                loadingText.style.display = "block";
+                modelViewer.style.display = "none";
+                arButton.style.display = "none";
 
-                try {
-                    // Пытаемся загрузить модель
-                    viewer.src = modelFile;
-                    
-                    // Ждём загрузки (таймаут 10 секунд)
-                    await Promise.race([
-                        new Promise(resolve => viewer.addEventListener("load", resolve, { once: true })),
-                        new Promise((_, reject) => setTimeout(() => reject("Таймаут загрузки"), 10000))
-                    ]);
-                    
-                    // Успешная загрузка
-                    loading.style.display = "none";
-                    viewer.style.display = "block";
-                    arBtn.style.display = "block";
-                    
-                } catch (e) {
-                    // Ошибка загрузки
-                    loading.style.display = "none";
-                    errorMsg.style.display = "block";
-                    errorMsg.textContent = `Ошибка: ${e}. Проверьте консоль (F12)`;
-                    console.error(`Ошибка загрузки ${modelFile}:`, e);
-                }
+                // Загружаем модель
+                modelViewer.src = modelFile;
+
+                // Когда модель загрузится
+                modelViewer.addEventListener("load", () => {
+                    loadingText.style.display = "none";
+                    modelViewer.style.display = "block";
+                    arButton.style.display = "block";
+                });
+
+                // Если ошибка
+                modelViewer.addEventListener("error", () => {
+                    loadingText.textContent = "Ошибка загрузки модели!";
+                    loadingText.style.color = "red";
+                });
             });
         });
 
         // AR-кнопка
-        arBtn.addEventListener("click", () => {
-            viewer.activateAR();
+        arButton.addEventListener("click", () => {
+            modelViewer.activateAR();
         });
     </script>
 </body>
