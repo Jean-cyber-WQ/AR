@@ -71,7 +71,6 @@
             z-index: 10;
         }
         .loading {
-            display: none;
             position: absolute;
             top: 50%;
             left: 50%;
@@ -83,6 +82,13 @@
             color: red;
             text-align: center;
             margin-top: 10px;
+        }
+        model-viewer {
+            width: 100%;
+            height: 100%;
+        }
+        /* Скрываем элементы по умолчанию */
+        #viewer, #ar-btn, #error-msg, #loading {
             display: none;
         }
     </style>
@@ -100,8 +106,8 @@
         </div>
         
         <div class="model-viewer-container">
-            <div class="loading">Загрузка модели...</div>
-            <div class="error-message" id="error-msg">Ошибка загрузки модели. Проверьте консоль (F12).</div>
+            <div id="loading" class="loading">Загрузка модели...</div>
+            <div id="error-msg" class="error-message"></div>
             <model-viewer
                 id="viewer"
                 alt="3D модель"
@@ -109,72 +115,59 @@
                 ar-modes="webxr scene-viewer quick-look"
                 environment-image="neutral"
                 auto-rotate
-                camera-controls
-                style="width: 100%; height: 100%;">
+                camera-controls>
             </model-viewer>
-            <button class="ar-button" id="ar-btn">Просмотр в AR</button>
+            <button id="ar-btn" class="ar-button">Просмотр в AR</button>
         </div>
     </div>
 
     <script>
-        const modelViewer = document.querySelector("#viewer");
-        const arButton = document.querySelector("#ar-btn");
-        const loadingText = document.querySelector(".loading");
-        const errorMsg = document.querySelector("#error-msg");
-        const modelButtons = document.querySelectorAll(".model-btn");
-
-        // Скрываем AR-кнопку и ошибку по умолчанию
-        arButton.style.display = "none";
-        errorMsg.style.display = "none";
-
-        // Функция сброса состояния перед загрузкой новой модели
-        const resetViewerState = () => {
-            loadingText.style.display = "none";
-            errorMsg.style.display = "none";
-            modelViewer.style.display = "block";
-            arButton.style.display = "none";
-        };
+        const viewer = document.getElementById("viewer");
+        const arBtn = document.getElementById("ar-btn");
+        const loading = document.getElementById("loading");
+        const errorMsg = document.getElementById("error-msg");
+        const buttons = document.querySelectorAll(".model-btn");
 
         // Обработчик для кнопок моделей
-        modelButtons.forEach(button => {
-            button.addEventListener("click", () => {
+        buttons.forEach(button => {
+            button.addEventListener("click", async () => {
                 const modelFile = button.getAttribute("data-model");
                 
-                // Сбрасываем состояние перед загрузкой
-                resetViewerState();
-                loadingText.style.display = "block";
-                modelViewer.style.display = "none";
+                // Сбрасываем состояние
+                viewer.style.display = "none";
+                arBtn.style.display = "none";
+                errorMsg.style.display = "none";
+                loading.style.display = "block";
+                errorMsg.textContent = "";
 
-                // Удаляем старые обработчики (если были)
-                modelViewer.removeEventListener("load", onModelLoad);
-                modelViewer.removeEventListener("error", onModelError);
-
-                // Новые обработчики
-                const onModelLoad = () => {
-                    loadingText.style.display = "none";
-                    modelViewer.style.display = "block";
-                    arButton.style.display = "block";
-                    errorMsg.style.display = "none";
-                };
-
-                const onModelError = () => {
-                    loadingText.style.display = "none";
-                    modelViewer.style.display = "none";
+                try {
+                    // Пытаемся загрузить модель
+                    viewer.src = modelFile;
+                    
+                    // Ждём загрузки (таймаут 10 секунд)
+                    await Promise.race([
+                        new Promise(resolve => viewer.addEventListener("load", resolve, { once: true })),
+                        new Promise((_, reject) => setTimeout(() => reject("Таймаут загрузки"), 10000))
+                    ]);
+                    
+                    // Успешная загрузка
+                    loading.style.display = "none";
+                    viewer.style.display = "block";
+                    arBtn.style.display = "block";
+                    
+                } catch (e) {
+                    // Ошибка загрузки
+                    loading.style.display = "none";
                     errorMsg.style.display = "block";
-                    console.error(`Ошибка загрузки модели: ${modelFile}`);
-                };
-
-                modelViewer.addEventListener("load", onModelLoad, { once: true });
-                modelViewer.addEventListener("error", onModelError, { once: true });
-
-                // Пытаемся загрузить модель
-                modelViewer.src = modelFile;
+                    errorMsg.textContent = `Ошибка: ${e}. Проверьте консоль (F12)`;
+                    console.error(`Ошибка загрузки ${modelFile}:`, e);
+                }
             });
         });
 
         // AR-кнопка
-        arButton.addEventListener("click", () => {
-            modelViewer.activateAR();
+        arBtn.addEventListener("click", () => {
+            viewer.activateAR();
         });
     </script>
 </body>
